@@ -1,55 +1,11 @@
 use reqwest::Client;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::{
     env,
     time::{SystemTime, UNIX_EPOCH},
 };
 
 use thiserror::Error;
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct KeySet {
-    id: String,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    keys: Option<Vec<Key>>,
-}
-
-impl KeySet {
-    pub fn new(key_id: &str) -> Self {
-        KeySet {
-            id: key_id.to_string(),
-            keys: None,
-        }
-    }
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct Key {
-    r#use: String,
-    kid: Option<String>,
-    nbf: Option<i64>,
-    exp: Option<i64>,
-}
-
-#[derive(Debug, Serialize)]
-struct KeySecret {
-    r#use: String,
-    k: String,
-    nbf: Option<i64>,
-    exp: Option<i64>,
-}
-
-impl KeySecret {
-    fn new() -> Self {
-        KeySecret {
-            r#use: "sig".to_string(),
-            k: "My Super Secret".to_string(),
-            nbf: Some(1702532556),
-            exp: Some(1702532556),
-        }
-    }
-}
 
 #[derive(Deserialize)]
 struct TokenResponse {
@@ -77,7 +33,7 @@ pub enum MicrosoftGraphError {
 pub struct MicrosoftGraph {
     pub access_token: String,
     pub expires_on: u64,
-    client: Client,
+    pub client: Client,
 }
 
 impl MicrosoftGraph {
@@ -91,104 +47,6 @@ impl MicrosoftGraph {
         new_instance.get_token().await?;
 
         Ok(new_instance)
-    }
-
-    pub async fn create_key_set(&self, key_id: &str) -> Result<KeySet, MicrosoftGraphError> {
-        let key_set = KeySet::new(key_id);
-        let key_set_json = serde_json::to_string(&key_set)?;
-        println!("Key Set JSON: {}", key_set_json);
-
-        let response = self
-            .client
-            .post(format!(
-                "https://graph.microsoft.com/beta/trustFramework/keySets"
-            ))
-            .bearer_auth(&self.access_token)
-            .header("Content-Type", "application/json")
-            .body(key_set_json)
-            .send()
-            .await
-            .map_err(MicrosoftGraphError::RequestError)?;
-
-        if !response.status().is_success() {
-            let status = response.status();
-            let error_body = response.text().await.unwrap_or_default();
-            eprintln!("HTTP Error: {}\n{}", status, error_body);
-            return Err(MicrosoftGraphError::HttpResponseError {
-                status,
-                body: error_body,
-            });
-        }
-        let key_response: KeySet = response
-            .json()
-            .await
-            .map_err(MicrosoftGraphError::RequestError)?;
-
-        Ok(key_response)
-    }
-
-    pub async fn upload_secret(&self, key_id: &str) -> Result<Key, MicrosoftGraphError> {
-        let key_secret = KeySecret::new();
-        let key_secret_json = serde_json::to_string(&key_secret)?;
-        let response = self
-            .client
-            .post(format!(
-                "https://graph.microsoft.com/beta/trustFramework/keySets/{key_id}/uploadSecret"
-            ))
-            .bearer_auth(&self.access_token)
-            .header("Content-Type", "application/json")
-            .body(key_secret_json)
-            .send()
-            .await
-            .map_err(MicrosoftGraphError::RequestError)?;
-
-        if !response.status().is_success() {
-            let status = response.status();
-            let error_body = response.text().await.unwrap_or_default();
-            eprintln!("HTTP Error: {}\n{}", status, error_body);
-            return Err(MicrosoftGraphError::HttpResponseError {
-                status,
-                body: error_body,
-            });
-        }
-        let key_response: Key = response
-            .json()
-            .await
-            .map_err(MicrosoftGraphError::RequestError)?;
-
-        Ok(key_response)
-    }
-
-    //Takes in a keyset ID from https://graph.microsoft.com/beta/trustFramework/keySets/{id}
-    pub async fn get_key_set(&self, key_id: &str) -> Result<KeySet, MicrosoftGraphError> {
-        let response = self
-            .client
-            .get(format!(
-                "{}/{}",
-                "https://graph.microsoft.com/beta/trustFramework/keySets", key_id
-            ))
-            .bearer_auth(&self.access_token)
-            .header("Content-Type", "application/json")
-            .send()
-            .await
-            .map_err(MicrosoftGraphError::RequestError)?;
-
-        if !response.status().is_success() {
-            let status = response.status();
-            let error_body = response.text().await.unwrap_or_default();
-            eprintln!("HTTP Error: {}\n{}", status, error_body);
-            return Err(MicrosoftGraphError::HttpResponseError {
-                status,
-                body: error_body,
-            });
-        }
-
-        let key_response: KeySet = response
-            .json()
-            .await
-            .map_err(MicrosoftGraphError::RequestError)?;
-
-        Ok(key_response)
     }
 
     async fn refresh_token(&mut self) -> Result<(), MicrosoftGraphError> {
