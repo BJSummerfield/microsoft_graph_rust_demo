@@ -6,7 +6,7 @@ use microsoft_graph::{MicrosoftGraph, PolicyKey};
 #[tokio::main]
 async fn main() {
     dotenv().ok();
-    let key_name = "B2C_1A_TestKey3";
+    let key_name = "B2C_1A_MSASecret";
 
     let microsoft_graph = MicrosoftGraph::new()
         .await

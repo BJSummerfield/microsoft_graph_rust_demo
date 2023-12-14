@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct KeySet {
@@ -35,11 +36,20 @@ pub struct KeySecret {
 
 impl KeySecret {
     pub fn new() -> Self {
-        KeySecret {
-            r#use: "sig".to_string(),
-            k: "My Super Secret".to_string(),
-            nbf: Some(1702540440),
-            exp: Some(1702540440),
+        if let Ok(now) = SystemTime::now().duration_since(UNIX_EPOCH) {
+            let one_day = Duration::from_secs(60 * 60 * 24); // 24 hours in seconds
+            let expiry_time = now + one_day;
+            let current_time_seconds = now.as_secs();
+            let expiry_time_seconds = expiry_time.as_secs();
+
+            KeySecret {
+                r#use: "sig".to_string(),
+                k: "My Super Secret".to_string(),
+                nbf: Some(current_time_seconds.try_into().unwrap()),
+                exp: Some(expiry_time_seconds.try_into().unwrap()),
+            }
+        } else {
+            panic!("System time before UNIX EPOCH!");
         }
     }
 }
