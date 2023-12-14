@@ -38,8 +38,8 @@ impl KeySecret {
         KeySecret {
             r#use: "sig".to_string(),
             k: "My Super Secret".to_string(),
-            nbf: Some(1702532556),
-            exp: Some(1702532556),
+            nbf: Some(1702540440),
+            exp: Some(1702540440),
         }
     }
 }
